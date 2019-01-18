@@ -1,6 +1,7 @@
 from termcolor import colored
 import sys
 import DatabaseHandler
+import textwrap
 
 
 class User:
@@ -154,16 +155,30 @@ class Ticket:
         return repres
 
     def __str__(self):
+        divider = "-" * 70 + "\n"
         if self.resolution_note == "":
-            return "\nTicket# {}\nCreated By: {}\nName: {}\nCallback #: {}\nLocation: {}\nSummary: {}\nDetails: {" \
-                   "}\nStatus: {}\nAssigned to: {}".format(
-                self.ID, self.creator, self.name, self.callback, self.location, self.summary, self.detail, self.status,
-                self.user_assigned_to + " - " + self.workgroup_assigned_to)
+            return "\n{}Ticket# {}\nCreated By: {}\nName: {}\nCallback #: {}\nLocation: {}\nTicket Status: {}" \
+                   "\nAssigned to: {}\n{}Summary: {}\n{}Details:\n\n{}\n{}".format(divider,
+                self.ID, self.creator, self.name, self.callback, self.location,self.status
+                ,self.user_assigned_to + " - " + self.workgroup_assigned_to,divider,self.summary,divider,self.detail,
+                divider)
         else:
-            return "\nTicket# {}\nCreated By: {}\nName: {}\nCallback #: {}\nLocation: {}\nSummary: {}\nDetails: {" \
-                   "}\nStatus: {}\nResolution Note: {}\nAssigned to: {}".format(
-                self.ID, self.creator, self.name, self.callback, self.location, self.summary, self.detail, self.status,
-                self.resolution_note, self.user_assigned_to + " - " + self.workgroup_assigned_to)
+            return "\n{}Ticket# {}\nCreated By: {}\nName: {}\nCallback #: {}\nLocation: {}\nTicket Status: {}" \
+                   "\nResolution Note: {}\nAssigned to: {}\n{}Summary: {}\n{}Details:\n\n{}\n{}".format(divider,
+                self.ID, self.creator, self.name, self.callback, self.location,self.status,self.resolution_note,
+                self.user_assigned_to + " - " + self.workgroup_assigned_to,divider,self.summary,divider,self.detail,
+                divider)
+
+    def multiline_input(string):
+        line_count = 1
+        details = """"""
+        detail = """ """
+        while detail != """""":
+            detail = input("{} line {}: ".format(string,line_count))
+            details += " "+detail+"\n"
+            line_count += 1
+            details = textwrap.fill(details)
+        return details
 
     def resolve(self):
 
@@ -179,7 +194,7 @@ class Ticket:
         if resolve.lower() == "y":
             self.resolved = True
             self.status = "Resolved"
-            self.resolution_note = input("\nEnter Resolution Notes: ")
+            self.resolution_note = Ticket.multiline_input("\nEnter Resolution Note")
 
             # Updating Database status resolved boolean and resolution notes
             DatabaseHandler.update_ticket(self, Status=True)
@@ -215,10 +230,11 @@ class Ticket:
 
 
 def generate_ticket(user):
+
     space = "\n" * 10
     print(space + "Fill in ticket information:\n")
     ticket = Ticket(user.username, input("Name: "), input("Callback #: "), input("Location: ")
-                    , input("Summary: "), input("Details: "))
+                    , input("Ticket Summary: "), Ticket.multiline_input("Ticket Detail"))
 
     ticket.name_tickets.append(ticket)
     ticket.creator_tickets.append(ticket)
@@ -289,9 +305,10 @@ def ticket_lookup():
                 for ticket in Ticket.tick_dict[search][creator]:
                     if ticket.creator == creator:
                         print(ticket)
+                        input("[Enter to continue...]")
             else:
                 print(colored("\n**No tickets returned for {}**".format(creator), "red"))
-            input("[Enter to continue...]")
+                input("[Enter to continue...]")
             menu()
         if search_method == "3":
             search = "name"
@@ -389,8 +406,11 @@ def pull_users_from_db():
             user.assigned_tickets = list()
         else:
             user.assigned_tickets = list()
-            # striping out the list brackets and appending ID to empty list of assigned tickets
-            user.assigned_tickets.append(int(user_data[i][3].strip("[]")))
+            # striping out the list brackets and appending ID to empty list of assigned tickets if empty
+            # Splitting ticket Ids into list and appending individually
+            ticket_ids = user_data[i][3].strip("[]").split(",")
+            for ticket_id in ticket_ids:
+                user.assigned_tickets.append(int(ticket_id))
     # boolean flag so pulling from DB only occurs once
     User.users_pulled = True
 
@@ -398,8 +418,7 @@ def pull_users_from_db():
 def pull_tickets_from_db():
     # pulling ticket table attributes in from TICKET table
     ticket_data = DatabaseHandler.query("TICKET", "ID,Creator, Name, Callback,"
-                                                  "Location, Summary, Detail,Assigned_User,Workgroup,Status,Resolved,Resolution_Note",
-                                        "")
+        "Location, Summary, Detail,Assigned_User,Workgroup,Status,Resolved,Resolution_Note","")
     # for every ticket in DB creating a ticket object and assigning object attributes
     for i in range(len(ticket_data)):
         ticket = Ticket(ticket_data[i][1], ticket_data[i][2], ticket_data[i][3], ticket_data[i][4], ticket_data[i][5],
