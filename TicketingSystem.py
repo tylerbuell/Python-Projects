@@ -34,33 +34,42 @@ class User:
                 "red"))
             input("[Enter to continue to menu]")
             menu()
-        user = user_select()
-        ticket.user_assigned_to = user.username
-        ticket.assigned_user = user
-        ticket.workgroup_assigned_to = user.workgroup
 
-        # updating assigned tickets list when a ticket is passed from one user to another
-        if ticket.ID in self.assigned_tickets:
-            self.assigned_tickets.remove(ticket.ID)
-            user.assigned_tickets.append(ticket.ID)
-        elif ticket.ID in previous_owner.assigned_tickets:
-            previous_owner.assigned_tickets.remove(ticket.ID)
-            user.assigned_tickets.append(ticket.ID)
+        if User.logged_in_user.workgroup == ticket.assigned_user.workgroup:
+            user = user_select()
+            ticket.user_assigned_to = user.username
+            ticket.assigned_user = user
+            ticket.workgroup_assigned_to = user.workgroup
+
+            # updating assigned tickets list when a ticket is passed from one user to another
+            if ticket.ID in self.assigned_tickets:
+                self.assigned_tickets.remove(ticket.ID)
+                user.assigned_tickets.append(ticket.ID)
+            elif ticket.ID in previous_owner.assigned_tickets:
+                previous_owner.assigned_tickets.remove(ticket.ID)
+                user.assigned_tickets.append(ticket.ID)
+            else:
+                user.assigned_tickets.append(ticket.ID)
+            # Updating user database assigned tickets
+            DatabaseHandler.update_user(user, assigned_tickets=True)
+
+            DatabaseHandler.update_user(previous_owner, assigned_tickets=True)
+            user_dict["assigned_tickets"][user.username] = ticket
+
+            # Updating ticket database assigned user and workgroup
+            DatabaseHandler.update_ticket(ticket, Assigned_User=True)
+            DatabaseHandler.update_ticket(ticket, Workgroup=True)
+
+            print(colored("\n**Ticket# {} assigned to User: {} in the {} workgroup**".format(ticket.ID, user.username,
+                                                                                             user.workgroup), "blue"))
+            input("[Enter to continue to menu]")
         else:
-            user.assigned_tickets.append(ticket.ID)
-        # Updating user database assigned tickets
-        DatabaseHandler.update_user(user, assigned_tickets=True)
+            print(colored(
+                "\n**Not Authorized to Resolve Ticket# {} for {} is assigned to a user in the {} workgroup **"
+                    .format(ticket.ID, ticket.name, ticket.workgroup_assigned_to),"red"))
+            input("[Enter to continue to menu]")
 
-        DatabaseHandler.update_user(previous_owner, assigned_tickets=True)
-        user_dict["assigned_tickets"][user.username] = ticket
 
-        # Updating ticket database assigned user and workgroup
-        DatabaseHandler.update_ticket(ticket, Assigned_User=True)
-        DatabaseHandler.update_ticket(ticket, Workgroup=True)
-
-        print(colored("\n**Ticket# {} assigned to User: {} in the {} workgroup**".format(ticket.ID, user.username,
-                                                                                         user.workgroup), "blue"))
-        input("[Enter to continue to menu]")
 
 
 def create_user():
@@ -257,8 +266,8 @@ def ticket_lookup():
     error = True
     space = "\n" * 10
     print(
-        space + "Search By:\n\n1.Ticket ID#\n2.Name on Ticket\n3.Name of Creator\n4.Open Tickets\n5.Resolved "
-                "Tickets\n6.Assigned Tickets")
+        space + "Search By:\n\n1.Ticket ID#\n2.My Tickets\n3.Name on Ticket\n4.Name of Creator\n5.Open Tickets\n6.Resolved "
+                "Tickets\n7.Assigned Tickets")
     search_method = input("\nSelect search method: ")
     try:
         if search_method == "1":
@@ -273,8 +282,18 @@ def ticket_lookup():
             print(ticket)
             input("[Enter to continue...]")
             menu()
-
         if search_method == "2":
+            search = "creator"
+            creator = User.logged_in_username
+            if len(User.logged_in_user.assigned_tickets) != 0:
+                for ticket in Ticket.tick_dict[search][creator]:
+                    if ticket.creator == creator:
+                        print(ticket)
+            else:
+                print(colored("\n**No tickets returned for {}**".format(creator), "red"))
+            input("[Enter to continue...]")
+            menu()
+        if search_method == "3":
             search = "name"
             valid_names = list(Ticket.tick_dict[search].keys())
             print("\nValid names: {}".format(valid_names))
@@ -289,7 +308,7 @@ def ticket_lookup():
             if error:
                 raise KeyError
 
-        if search_method == "3":
+        if search_method == "4":
             search = "creator"
             valid_creators = list(Ticket.tick_dict[search].keys())
             print("\nValid creators: {}".format(valid_creators))
@@ -304,7 +323,7 @@ def ticket_lookup():
             if error:
                 raise KeyError
 
-        if search_method == "4":
+        if search_method == "5":
             count = 0
             for ticket in Ticket.tick_dict["ID"].values():
                 if not ticket.resolved:
@@ -315,7 +334,7 @@ def ticket_lookup():
                 print(colored("\n**No open tickets returned**", "red"))
                 input("[Enter to continue...]")
 
-        if search_method == "5":
+        if search_method == "6":
             count = 0
             for ticket in Ticket.tick_dict["ID"].values():
                 if ticket.resolved:
@@ -326,7 +345,7 @@ def ticket_lookup():
                 print(colored("\n**No resolved tickets returned**", "red"))
                 input("[Enter to continue...]")
 
-        if search_method == "6":
+        if search_method == "7":
             count = 0
             print("\nValid Workgroups: {}".format(User.workgroups))
             workgroup = input("Enter Workgroup: ")
@@ -347,7 +366,7 @@ def ticket_lookup():
 
 # for converting string boolean to true boolean for resolution
 def strtobool(string):
-    if string.upper() == "True":
+    if str(string).upper() == "True":
         return True
     else:
         return False
@@ -440,7 +459,6 @@ def menu():
                     ticket = ticket_select()
                     ticket.unresolve()
                 if action == "6" and User.user_count > 1:
-                    print(User.logged_in_user.username)
                     User.logged_in_user.assign_ticket()
                 elif action == "6":
                     print(colored("**No additional users to assign to**", "red"))
