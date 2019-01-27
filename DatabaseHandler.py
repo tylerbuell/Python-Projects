@@ -1,5 +1,6 @@
 import sqlite3
 
+
 db = "TicketDB.db"
 dbContents = []
 
@@ -32,9 +33,34 @@ def insert(object):
 
     dbConn.close()
 
+def user_count():
+    dbConn = sqlite3.connect(db)
+    query = """SELECT count(*) FROM USER"""
+    cursor = dbConn.execute(query)
+    user_count = cursor.fetchone()[0]
+    dbConn.commit()
+    dbConn.close()
+    return int(user_count)
+
+
+def ticket_count():
+    dbConn = sqlite3.connect(db)
+    query = """SELECT count(*) FROM TICKET"""
+    cursor = dbConn.execute(query)
+    ticket_count = cursor.fetchone()[0]
+    dbConn.commit()
+    dbConn.close()
+    return int(ticket_count)
+
 
 def update_user(user, **column):
     dbConn = sqlite3.connect(db)
+    if column.get("column") == "username":
+        update = "UPDATE USER SET username = '" + str(user.username) + "' WHERE ID = '" + str(
+            user.ID) + "'"
+    if column.get("column") == "workgroup":
+        update = "UPDATE USER SET workgroup = '" + str(user.workgroup) + "' WHERE ID = '" + str(
+            user.ID) + "'"
     if column.get("assigned_tickets"):
         update = "UPDATE USER SET assigned_tickets = '" + str(user.assigned_tickets) + "' WHERE ID = '" + str(
             user.ID) + "'"
@@ -45,6 +71,21 @@ def update_user(user, **column):
 
 def update_ticket(ticket, **column):
     dbConn = sqlite3.connect(db)
+    if column.get("column") == "Name":
+        update = "UPDATE TICKET SET Name = '" + ticket.name + "' WHERE ID = '" + str(
+            ticket.ID) + "'"
+    if column.get("column") == "Callback":
+        update = "UPDATE TICKET SET Callback = '" + ticket.callback + "' WHERE ID = '" + str(
+            ticket.ID) + "'"
+    if column.get("column") == "Location":
+        update = "UPDATE TICKET SET Location = '" + ticket.location + "' WHERE ID = '" + str(
+            ticket.ID) + "'"
+    if column.get("column") == "Summary":
+        update = "UPDATE TICKET SET Summary = '" + ticket.summary + "' WHERE ID = '" + str(
+            ticket.ID) + "'"
+    if column.get("column") == "Detail":
+        update = "UPDATE TICKET SET Detail = '" + ticket.detail + "' WHERE ID = '" + str(
+            ticket.ID) + "'"
     if column.get("Assigned_User"):
         update = "UPDATE TICKET SET Assigned_User = '" + ticket.user_assigned_to + "' WHERE ID = '" + str(
             ticket.ID) + "'"
@@ -63,44 +104,38 @@ def update_ticket(ticket, **column):
     dbConn.close()
 
 
-def delete():
+def delete(object):
+    object_name = object.__class__.__name__
     dbConn = sqlite3.connect(db)
-    delName = input("Enter the name to delete or enter ALL to clear all records >> ")
-    if delName == "ALL":
-        delete = "DELETE FROM NameDB"
-        dbConn.execute(delete)
-        dbContents.clear()
-        print("All Records Successfully Deleted")
-    else:
-        if delName in dbContents:
-            delete = "DELETE FROM NameDB WHERE FIRST_NAME = '" + delName + "'"
-            dbConn.execute(delete)
-            dbContents.remove(delName)
-            print(delName + " has successfully been Deleted")
+    delete_check = input("Are you sure you want to delete selected {}? (Y/N)".format(object_name)).lower()
+    if delete_check == "y":
+        if object_name == "Ticket":
+            ticket = object
+            table = "TICKET"
+            delete = """DELETE FROM {} WHERE ID = {}""".format(table,ticket.ID)
+            associated_user = ticket.assigned_user
+            if len(associated_user.assigned_tickets) > 0:
+                associated_user.assigned_tickets.remove(ticket.ID)
+                update_user(associated_user,assigned_tickets=True)
+                del ticket.tick_dict["ID"][ticket.ID]
+                del ticket.tick_dict["name"][ticket.name]
+                del ticket.tick_dict["creator"][ticket.creator]
+                del ticket
+
         else:
-            print("Record does not exist in database")
-    dbConn.commit()
-    dbConn.close()
+            user = object
+            table = "USER"
+            delete = """DELETE FROM {} WHERE ID = {}""".format(table, user.ID)
+            del user.user_dict["username"][user.username]
+            del user.user_dict["workgroup"][user.username]
+            del user
 
-
-def user_count():
-    dbConn = sqlite3.connect(db)
-    query = """SELECT count(*) FROM USER"""
-    cursor = dbConn.execute(query)
-    user_count = cursor.fetchone()
-    dbConn.commit()
-    dbConn.close()
-    return int(user_count[0])
-
-
-def ticket_count():
-    dbConn = sqlite3.connect(db)
-    query = """SELECT count(*) FROM TICKET"""
-    cursor = dbConn.execute(query)
-    ticket_count = cursor.fetchone()
-    dbConn.commit()
-    dbConn.close()
-    return int(ticket_count[0])
+        dbConn.execute(delete)
+        dbConn.commit()
+        dbConn.close()
+        return True
+    else:
+        return False
 
 
 def query(table, select, where):
