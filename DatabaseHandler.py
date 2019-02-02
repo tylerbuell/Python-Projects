@@ -1,6 +1,5 @@
 import sqlite3
 
-
 db = "TicketDB.db"
 dbContents = []
 
@@ -31,8 +30,8 @@ def insert(object):
 
     dbConn.execute(insert, attributes)
     dbConn.commit()
-
     dbConn.close()
+
 
 def max_userid():
     dbConn = sqlite3.connect(db)
@@ -43,6 +42,7 @@ def max_userid():
     max_id = cursor.fetchone()
     return max_id[0]
 
+
 def max_ticketid():
     dbConn = sqlite3.connect(db)
     select = "ID"
@@ -51,6 +51,7 @@ def max_ticketid():
     cursor = dbConn.execute(query)
     max_id = cursor.fetchone()
     return max_id[0]
+
 
 def user_count():
     dbConn = sqlite3.connect(db)
@@ -131,11 +132,11 @@ def delete(object):
         if object_name == "Ticket":
             ticket = object
             table = "TICKET"
-            delete = """DELETE FROM {} WHERE ID = {}""".format(table,ticket.ID)
+            delete = """DELETE FROM {} WHERE ID = {}""".format(table, ticket.ID)
             associated_user = ticket.assigned_user
             if len(associated_user.assigned_tickets) > 0:
                 associated_user.assigned_tickets.remove(ticket.ID)
-                update_user(associated_user,assigned_tickets=True)
+                update_user(associated_user, assigned_tickets=True)
                 del ticket.tick_dict["ID"][ticket.ID]
                 del ticket.tick_dict["name"][ticket.name]
                 del ticket.tick_dict["creator"][ticket.creator]
@@ -153,6 +154,7 @@ def delete(object):
         dbConn.commit()
         dbConn.close()
         return True
+
 
 def query(table, select, where):
     records = []

@@ -18,7 +18,7 @@ class User:
     logged_in_workgroup = ""
     colored_user = ""
     colored_workgroup = ""
-    logged_user = False
+    logged_in = False
 
     def __init__(self, username, workgroup):
         self.user_count = User.user_count
@@ -28,7 +28,7 @@ class User:
         self.assigned_tickets = []
         self.logged_in = False
 
-    def straight_assignment(self,user,ticket):
+    def straight_assignment(self, user, ticket):
         previous_owner = ticket.assigned_user
         user_dict = User.user_dict
         ticket.user_assigned_to = user.username
@@ -61,6 +61,7 @@ class User:
                                                                                          user.workgroup), "blue"))
 
     def assign_ticket(self):
+        print("Select a ticket ID to assign:\n")
         user_dict = User.user_dict
         ticket = ticket_select()
         previous_owner = ticket.assigned_user
@@ -73,6 +74,7 @@ class User:
             menu()
 
         if User.logged_in_user.workgroup == ticket.assigned_user.workgroup:
+            print("\nSelect a User to assign to:")
             user = user_select()
             ticket.user_assigned_to = user.username
             ticket.assigned_user = user
@@ -109,10 +111,9 @@ class User:
                     .format(ticket.ID, ticket.name, ticket.workgroup_assigned_to), "red"))
             input("[Enter to continue to menu]")
 
-
     def update_user(self):
         user_update_dict = {"Username": lambda: input("Updated Username: "),
-                              "Workgroup": lambda: input("Updated Workgroup: ")}
+                            "Workgroup": lambda: input("Updated Workgroup: ")}
         update_fields = list(user_update_dict.keys())
         print("Select User Field to Update:\n")
         print("Valid Fields: {}".format(update_fields))
@@ -140,14 +141,10 @@ class User:
 
 
 def create_user():
-    space = "\n" * 10
+    space = "\n" * 50
     print(space + "Create User Account:\n-------------------")
-    username = input("Create Username: ")
-    print("Workgroups: {}".format(User.workgroups))
-    workgroup = input("Select Workgroup: ")
-    while workgroup not in User.workgroups:
-        workgroup = input("Select Workgroup: ")
-
+    username = input("\nCreate Username: ")
+    workgroup = workgroup_select()
     user = User(username, workgroup)
     print(colored("\n**User: {} created successfully**".format(user.username), "blue"))
     input("[Enter to continue...]")
@@ -160,10 +157,61 @@ def create_user():
     menu()
     return user
 
-def matching_user(username, user_list):
+
+def delete_user():
+    print("\nSelect User to Delete:")
+    tickets_remain = False
+    del_user = user_select()
+    user_tickets = len(del_user.assigned_tickets)
+    if user_tickets > 0:
+        tickets_remain = True
+        remainder_tickets = del_user.assigned_tickets.copy()
+        print(colored("\n**User {} has {} ticket(s) assigned".format(del_user.username, user_tickets), "red"))
+        print("Choose a user to assign {}'s ticket(s) to:\n".format(del_user.username))
+        assign_user = user_select()
+        for ID in remainder_tickets:
+            ticket = Ticket.tick_dict["ID"][ID]
+            del_user.straight_assignment(assign_user, ticket)
+        input("[Enter to continue]")
+    deleted = DatabaseHandler.delete(del_user)
+    if del_user.logged_in:
+        log_out(del_user)
+    User.user_count = DatabaseHandler.user_count()
+    if deleted:
+        print(colored("\n**{} from the {} workgroup Successfully Deleted**".
+                      format(del_user.username, del_user.workgroup), "blue"))
+        input("[Enter to continue...]")
+        menu()
+    else:
+        if tickets_remain:
+            for ID in remainder_tickets:
+                ticket = Ticket.tick_dict["ID"][ID]
+                assign_user.straight_assignment(del_user, ticket)
+        print(colored("\n**User {} was NOT Deleted**".format(del_user.username, del_user.workgroup), "red"))
+        input("[Enter to continue...]")
+        menu()
+
+
+def matching_item(username, user_list):
     for user in user_list:
         if username.lower() in user.lower():
             return user
+
+def workgroup_select():
+    valid_workgroups = sorted(User.workgroups)
+    workgroup = ""
+    while workgroup not in User.workgroups:
+        print("\nValid Workgroups: {}".format(valid_workgroups))
+        workgroup = input("Select Workgroup: ")
+        if workgroup in valid_workgroups:
+            break
+        else:
+            close_workgroup = matching_item(workgroup, valid_workgroups)
+            workgroup_check = input("Did you mean {}? (Y/N)".format(close_workgroup)).lower()
+            if workgroup_check == "y":
+                workgroup = close_workgroup
+                break
+    return workgroup
 
 def user_select():
     user_dict = User.user_dict
@@ -176,7 +224,7 @@ def user_select():
         if username in valid_users:
             break
         else:
-            close_user = matching_user(username, valid_users)
+            close_user = matching_item(username, valid_users)
             user_check = input("Did you mean {}? (Y/N)".format(close_user)).lower()
             if user_check == "y":
                 username = close_user
@@ -206,7 +254,7 @@ def log_in(user):
 
 
 def user_login():
-    space = "\n" * 10
+    space = "\n" * 50
     print(space + "Select a user to login as:")
     user = user_select()
     log_in(user)
@@ -259,42 +307,41 @@ class Ticket:
         else:
             return "\n{}Ticket# {}\nCreated By: {}\nName: {}\nCallback #: {}\nLocation: {}\nTicket Status: {}" \
                    "\nResolution Note: {}\nAssigned to: {}\n{}Summary: {}\n{}Details:\n\n{}\n{}".format(divider,
-                                                            self.ID,
-                                                            self.creator,
-                                                            self.name,
-                                                            self.callback,
-                                                            self.location,
-                                                            self.status,
-                                                            self.resolution_note,
-                                                            self.user_assigned_to + " - " + self.workgroup_assigned_to,
-                                                            divider,
-                                                            self.summary,
-                                                            divider,
-                                                            self.detail,
-                                                            divider)
-
+                                                                                                        self.ID,
+                                                                                                        self.creator,
+                                                                                                        self.name,
+                                                                                                        self.callback,
+                                                                                                        self.location,
+                                                                                                        self.status,
+                                                                                                        self.resolution_note,
+                                                                                                        self.user_assigned_to + " - " + self.workgroup_assigned_to,
+                                                                                                        divider,
+                                                                                                        self.summary,
+                                                                                                        divider,
+                                                                                                        self.detail,
+                                                                                                        divider)
 
     def update_ticket(self):
-        ticket_update_dict = {"Name":lambda: input("Updated Name: "),
-                              "Callback":lambda: input("Updated Callback #: "),
-                              "Location":lambda: input("Updated Location: "),
-                              "Summary":lambda: input("Updated Ticket Summary: "),
-                              "Detail":lambda: Ticket.multiline_input("Updated Ticket Detail")}
+        ticket_update_dict = {"Name": lambda: input("Updated Name: "),
+                              "Callback": lambda: input("Updated Callback #: "),
+                              "Location": lambda: input("Updated Location: "),
+                              "Summary": lambda: input("Updated Ticket Summary: "),
+                              "Detail": lambda: Ticket.multiline_input("Updated Ticket Detail")}
         update_fields = list(ticket_update_dict.keys())
         print("\nSelect Ticket Field to Update:\n")
         print("Valid Fields: {}".format(update_fields))
         field = input("Field: ")
         while field not in update_fields:
             field = input("Field: ")
-        current_value = getattr(self,field.lower())
-        print("{} is currently: {}".format(field,current_value))
+        current_value = getattr(self, field.lower())
+        print("{} is currently: {}".format(field, current_value))
         updated_value = ticket_update_dict[field]()
         update_check = input("Are you sure you want to set {} to {} for ticket# {}? (Y/N)"
-                             .format(current_value,updated_value,self.ID))
+                             .format(current_value, updated_value, self.ID))
         if update_check == "y":
-            setattr(self,field.lower(),updated_value)
-            DatabaseHandler.update_ticket(self,column= field)
-            print(colored("\n**{} Updated successfully to: {}**".format(field,updated_value),"blue"))
+            setattr(self, field.lower(), updated_value)
+            DatabaseHandler.update_ticket(self, column=field)
+            print(colored("\n**{} Updated successfully to: {}**".format(field, updated_value), "blue"))
             input("[Enter to continue...]")
         else:
             print(colored("\n**{} was not updated**".format(field), "red"))
@@ -377,8 +424,8 @@ class Ticket:
 
 
 def generate_ticket(user):
-    space = "\n" * 10
-    print(space + "Fill in ticket information:\n")
+    space = "\n" * 50
+    print(space + "Fill in ticket information to create a Ticket:\n")
     ticket = Ticket(user.username, input("Name: "), input("Callback #: "), input("Location: ")
                     , input("Ticket Summary: "), Ticket.multiline_input("Ticket Detail"))
 
@@ -400,6 +447,22 @@ def generate_ticket(user):
     input("[Enter to continue...]")
     return ticket
     menu()
+
+
+def delete_ticket():
+    print("\nSelect Ticket ID to Delete:")
+    ticket = ticket_select()
+    deleted = DatabaseHandler.delete(ticket)
+    # updating ticket count
+    Ticket.created_tickets = DatabaseHandler.ticket_count()
+    if deleted:
+        print(colored("\n**Ticket# {} for {} Successfully Deleted**".format(ticket.ID, ticket.name), "blue"))
+        input("[Enter to continue...]")
+        menu()
+    else:
+        print(colored("\n**Ticket# {} was NOT deleted**".format(ticket.ID), "red"))
+        input("[Enter to continue...]")
+        menu()
 
 
 def ticket_select():
@@ -424,9 +487,9 @@ def ticket_select():
 
 def ticket_lookup():
     error = True
-    space = "\n" * 10
+    space = "\n" * 50
     print(
-        space + "Search By:\n\n1.Ticket ID#\n2.My Tickets\n3.Name on Ticket\n4.Name of Creator\n5.Open Tickets\n6.Resolved "
+        space + "Select a lookup method:\n\n1.Ticket ID#\n2.My Tickets\n3.Name on Ticket\n4.Name of Creator\n5.Open Tickets\n6.Resolved "
                 "Tickets\n7.Assigned Tickets")
     search_method = input("\nSelect search method: ")
     try:
@@ -437,7 +500,7 @@ def ticket_lookup():
             ID = input("Enter Ticket ID: ")
 
             while ID == "" or int(ID) not in valid_ids:
-                print(colored("**Invalid Ticket ID**","red"))
+                print(colored("**Invalid Ticket ID**", "red"))
                 ID = input("\nEnter Ticket ID: ")
             ticket = Ticket.tick_dict[search][int(ID)]
             print(ticket)
@@ -469,7 +532,7 @@ def ticket_lookup():
                 if name in valid_names:
                     break
                 else:
-                    close_name = matching_user(name,valid_names)
+                    close_name = matching_item(name, valid_names)
                     name_check = input("Did you mean {}? (Y/N)".format(close_name)).lower()
                     if name_check == "y":
                         name = close_name
@@ -495,7 +558,7 @@ def ticket_lookup():
                 if creator in valid_creators:
                     break
                 else:
-                    close_creator = matching_user(creator,valid_creators)
+                    close_creator = matching_item(creator, valid_creators)
                     name_check = input("Did you mean {}? (Y/N)".format(close_creator)).lower()
                     if name_check == "y":
                         creator = close_creator
@@ -535,20 +598,7 @@ def ticket_lookup():
 
         if search_method == "7":
             count = 0
-            workgroup = ""
-            close_workgroup = ""
-            valid_workgroups = User.workgroups
-            while workgroup not in User.workgroups:
-                print("\nValid Workgroups: {}".format(valid_workgroups))
-                workgroup = input("Enter Workgroup: ")
-                if workgroup in valid_workgroups:
-                    break
-                else:
-                    close_workgroup = matching_user(workgroup,valid_workgroups)
-                    workgroup_check = input("Did you mean {}? (Y/N)".format(close_workgroup)).lower()
-                    if workgroup_check == "y":
-                        workgroup = close_workgroup
-                        break
+            workgroup = workgroup_select()
             for ticket in Ticket.tick_dict["ID"].values():
                 if ticket.workgroup_assigned_to == workgroup:
                     print(ticket)
@@ -569,6 +619,7 @@ def strtobool(string):
         return True
     else:
         return False
+
 
 def pull_users_from_db():
     # pulling user table attributes in from USER table
@@ -599,12 +650,12 @@ def pull_users_from_db():
 def pull_tickets_from_db():
     # pulling ticket table attributes in from TICKET table
     ticket_data = DatabaseHandler.query("TICKET", "ID,Creator, Name, Callback,"
-                            "Location, Summary, Detail,Assigned_User,Workgroup,Status,Resolved,Resolution_Note","")
+                                                  "Location, Summary, Detail,Assigned_User,Workgroup,Status,Resolved,Resolution_Note",
+                                        "")
     # for every ticket in DB creating a ticket object and assigning object attributes
     for i in range(len(ticket_data)):
         ticket = Ticket(ticket_data[i][1], ticket_data[i][2], ticket_data[i][3], ticket_data[i][4], ticket_data[i][5],
                         ticket_data[i][6])
-
         ticket.ID = ticket_data[i][0]
         ticket.name_tickets.append(ticket)
         ticket.creator_tickets.append(ticket)
@@ -619,15 +670,14 @@ def pull_tickets_from_db():
         ticket.tick_dict["name"][ticket.name] = ticket.name_tickets
         ticket.tick_dict["creator"][ticket.creator] = ticket.creator_tickets
 
-        print(ticket.tick_dict["ID"])
-        print(ticket.tick_dict["name"])
-        print(ticket.tick_dict["creator"])
+        # print(ticket.tick_dict["ID"])
+        # print(ticket.tick_dict["name"])
+        # print(ticket.tick_dict["creator"])
     # boolean flag so pulling from DB only occurs once
     Ticket.tickets_pulled = True
 
 
 def menu():
-
     action = ""
     space = "\n" * 50
     # only pulling rom DB if it has data to pull
@@ -656,67 +706,29 @@ def menu():
             create_user()
         if User.logged_in:
             if action.lower() == "uu":
+                print("\nSelect a user ID to update:")
                 user = user_select()
                 user.update_user()
                 menu()
             if action.lower() == "du":
-                tickets_remain = False
-                del_user = user_select()
-                user_tickets = len(del_user.assigned_tickets)
-                if user_tickets > 0:
-                    tickets_remain = True
-                    remainder_tickets = del_user.assigned_tickets.copy()
-                    print(colored("\n**User {} has {} ticket(s) assigned".format(del_user.username,user_tickets),"red"))
-                    print("Choose a user to assign {}'s ticket(s) to:\n".format(del_user.username))
-                    assign_user = user_select()
-                    for ID in remainder_tickets:
-                        ticket = Ticket.tick_dict["ID"][ID]
-                        del_user.straight_assignment(assign_user,ticket)
-                    input("[Enter to continue]")
-                deleted = DatabaseHandler.delete(del_user)
-                print(del_user.logged_in)
-                if del_user.logged_in:
-                    log_out(del_user)
-
-                User.user_count = DatabaseHandler.user_count()
-                if deleted:
-                    print(colored("\n**{} from the {} workgroup Successfully Deleted**".
-                                  format(del_user.username, del_user.workgroup), "blue"))
-                    input("[Enter to continue...]")
-                    menu()
-                else:
-                    if tickets_remain:
-                        for ID in remainder_tickets:
-                            ticket = Ticket.tick_dict["ID"][ID]
-                            assign_user.straight_assignment(del_user,ticket)
-                    print(colored("\n**User {} was NOT Deleted**".format(del_user.username, del_user.workgroup),"red"))
-                    input("[Enter to continue...]")
-                    menu()
+                delete_user()
             if action == "3":
                 generate_ticket(User.logged_in_user)
             if Ticket.created_tickets > 0:
                 if action.lower() == "ut":
+                    print("\nSelect a ticket ID to update:")
                     ticket = ticket_select()
                     ticket.update_ticket()
                 if action.lower() == "dt":
-                    ticket = ticket_select()
-                    deleted = DatabaseHandler.delete(ticket)
-                    # updating ticket count
-                    Ticket.created_tickets = DatabaseHandler.ticket_count()
-                    if deleted:
-                        print(colored("\n**Ticket# {} for {} Successfully Deleted**".format(ticket.ID,ticket.name), "blue"))
-                        input("[Enter to continue...]")
-                        menu()
-                    else:
-                        print(colored("\n**Ticket# {} was NOT deleted**".format(ticket.ID),"red"))
-                        input("[Enter to continue...]")
-                        menu()
+                    delete_ticket()
                 if action == "4":
                     ticket_lookup()
                 if action == "5":
+                    print("\nSelect a ticket ID to resolve:")
                     ticket = ticket_select()
                     ticket.resolve()
                 if action == "6":
+                    print("\nSelect a ticket ID to un-resolve:")
                     ticket = ticket_select()
                     ticket.unresolve()
                 if action == "7" and User.user_count > 1:
@@ -724,14 +736,12 @@ def menu():
                 elif action == "7":
                     print(colored("**No additional users to assign to**", "red"))
                     input("[Enter to continue...]")
-            elif action.lower() != "q" and action.lower() in ["dt","ut","4","5","6","7"]:
+            elif action.lower() != "q" and action.lower() in ["dt", "ut", "4", "5", "6", "7"]:
                 print(colored("**Please Create a Ticket First**", "red"))
                 input("[Enter to continue...]")
-
         elif action.lower() != "q":
             print(colored("**Please Login First**", "red"))
             input("[Enter to continue...]")
-
     print(colored("\n**Exiting ticket system**", "red"))
     input("[Enter to continue...]")
     sys.exit()
