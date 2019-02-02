@@ -23,6 +23,7 @@ def insert(object):
     else:
         user = object
         table = "USER"
+        print(user.ID)
         attributes = {"ID": user.ID, "username": user.username,
                       "workgroup": user.workgroup, "assigned_tickets": str(user.assigned_tickets)}
 
@@ -32,6 +33,24 @@ def insert(object):
     dbConn.commit()
 
     dbConn.close()
+
+def max_userid():
+    dbConn = sqlite3.connect(db)
+    select = "ID"
+    table = "USER"
+    query = """SELECT MAX(CAST({} as INTEGER)) FROM {}""".format(select, table)
+    cursor = dbConn.execute(query)
+    max_id = cursor.fetchone()
+    return max_id[0]
+
+def max_ticketid():
+    dbConn = sqlite3.connect(db)
+    select = "ID"
+    table = "TICKET"
+    query = """SELECT MAX(CAST({} as INTEGER)) FROM {}""".format(select, table)
+    cursor = dbConn.execute(query)
+    max_id = cursor.fetchone()
+    return max_id[0]
 
 def user_count():
     dbConn = sqlite3.connect(db)
@@ -134,9 +153,6 @@ def delete(object):
         dbConn.commit()
         dbConn.close()
         return True
-    else:
-        return False
-
 
 def query(table, select, where):
     records = []

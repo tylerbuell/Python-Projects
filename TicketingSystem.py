@@ -18,14 +18,47 @@ class User:
     logged_in_workgroup = ""
     colored_user = ""
     colored_workgroup = ""
-    logged_in = False
+    logged_user = False
 
     def __init__(self, username, workgroup):
         self.user_count = User.user_count
-        self.ID = User.ID + User.user_count
+        self.ID = DatabaseHandler.max_userid() + 1
         self.username = username
         self.workgroup = workgroup
         self.assigned_tickets = []
+        self.logged_in = False
+
+    def straight_assignment(self,user,ticket):
+        previous_owner = ticket.assigned_user
+        user_dict = User.user_dict
+        ticket.user_assigned_to = user.username
+        ticket.assigned_user = user
+        ticket.workgroup_assigned_to = user.workgroup
+
+        # updating assigned tickets list when a ticket is passed from one user to another
+        if ticket.ID in self.assigned_tickets:
+            self.assigned_tickets.remove(ticket.ID)
+            user.assigned_tickets.append(ticket.ID)
+        elif ticket.ID in previous_owner.assigned_tickets:
+            previous_owner.assigned_tickets.remove(ticket.ID)
+            user.assigned_tickets.append(ticket.ID)
+        else:
+            user.assigned_tickets.append(ticket.ID)
+        # Updating user database assigned tickets
+        DatabaseHandler.update_user(user, assigned_tickets=True)
+
+        DatabaseHandler.update_user(previous_owner, assigned_tickets=True)
+        # updating dictionaries
+        user_dict["assigned_tickets"][user.username] = ticket
+        ticket.tick_dict["ID"][ticket.ID] = ticket
+        ticket.tick_dict["name"][ticket.name] = ticket.name_tickets
+
+        # Updating ticket database assigned user and workgroup
+        DatabaseHandler.update_ticket(ticket, Assigned_User=True)
+        DatabaseHandler.update_ticket(ticket, Workgroup=True)
+
+        print(colored("\n**Ticket# {} assigned to User: {} in the {} workgroup**".format(ticket.ID, user.username,
+                                                                                         user.workgroup), "blue"))
 
     def assign_ticket(self):
         user_dict = User.user_dict
@@ -72,9 +105,10 @@ class User:
             input("[Enter to continue to menu]")
         else:
             print(colored(
-                "\n**Not Authorized to Resolve Ticket# {} for {} is assigned to a user in the {} workgroup **"
+                "\n**Not Authorized to assign Ticket# {} for {} is assigned to a user in the {} workgroup **"
                     .format(ticket.ID, ticket.name, ticket.workgroup_assigned_to), "red"))
             input("[Enter to continue to menu]")
+
 
     def update_user(self):
         user_update_dict = {"Username": lambda: input("Updated Username: "),
@@ -158,6 +192,7 @@ def log_out(user):
     User.logged_in_workgroup = ""
     User.logged_in_user = User.temp_user
     User.logged_in = False
+    user.logged_in = False
 
 
 def log_in(user):
@@ -167,6 +202,7 @@ def log_in(user):
     User.logged_in_workgroup = user.workgroup
     User.logged_in_user = user
     User.logged_in = True
+    user.logged_in = True
 
 
 def user_login():
@@ -193,7 +229,7 @@ class Ticket:
         self.location = location
         self.summary = summary
         self.detail = detail
-        self.ID = Ticket.ID + Ticket.created_tickets
+        self.ID = DatabaseHandler.max_ticketid() + 1
         self.created_tickets = Ticket.created_tickets
         self.workgroup_assigned_to = User.logged_in_workgroup
         self.user_assigned_to = User.logged_in_username
@@ -590,7 +626,6 @@ def pull_tickets_from_db():
     Ticket.tickets_pulled = True
 
 
-
 def menu():
 
     action = ""
@@ -625,24 +660,36 @@ def menu():
                 user.update_user()
                 menu()
             if action.lower() == "du":
-                user = user_select()
-                user_tickets = len(user.assigned_tickets)
+                tickets_remain = False
+                del_user = user_select()
+                user_tickets = len(del_user.assigned_tickets)
                 if user_tickets > 0:
-                    print(colored("\n**User {} has {} ticket(s) assigned".format(user.username,user_tickets),"red"))
-                    print("Choose a user to assign {}'s tickets to:\n".format(user.username))
-                    user.assign_ticket()
-
-                deleted = DatabaseHandler.delete(user)
-                if user.logged_in:
-                    log_out(user)
+                    tickets_remain = True
+                    remainder_tickets = del_user.assigned_tickets.copy()
+                    print(colored("\n**User {} has {} ticket(s) assigned".format(del_user.username,user_tickets),"red"))
+                    print("Choose a user to assign {}'s ticket(s) to:\n".format(del_user.username))
+                    assign_user = user_select()
+                    for ID in remainder_tickets:
+                        ticket = Ticket.tick_dict["ID"][ID]
+                        del_user.straight_assignment(assign_user,ticket)
+                    input("[Enter to continue]")
+                deleted = DatabaseHandler.delete(del_user)
+                print(del_user.logged_in)
+                if del_user.logged_in:
+                    log_out(del_user)
 
                 User.user_count = DatabaseHandler.user_count()
                 if deleted:
-                    print(colored("\n**{} from the {} workgroup Successfully Deleted**".format(user.username, user.workgroup), "blue"))
+                    print(colored("\n**{} from the {} workgroup Successfully Deleted**".
+                                  format(del_user.username, del_user.workgroup), "blue"))
                     input("[Enter to continue...]")
                     menu()
                 else:
-                    print(colored("\n**User {} was NOT Deleted**".format(user.username, user.workgroup),"red"))
+                    if tickets_remain:
+                        for ID in remainder_tickets:
+                            ticket = Ticket.tick_dict["ID"][ID]
+                            assign_user.straight_assignment(del_user,ticket)
+                    print(colored("\n**User {} was NOT Deleted**".format(del_user.username, del_user.workgroup),"red"))
                     input("[Enter to continue...]")
                     menu()
             if action == "3":
