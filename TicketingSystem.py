@@ -19,10 +19,13 @@ class User:
     colored_user = ""
     colored_workgroup = ""
     logged_in = False
+    max_id = DatabaseHandler.max_userid()
+    if max_id is None:
+        max_id = 0
 
     def __init__(self, username, workgroup):
         self.user_count = User.user_count
-        self.ID = DatabaseHandler.max_userid() + 1
+        self.ID = User.max_id + 1
         self.username = username
         self.workgroup = workgroup
         self.assigned_tickets = []
@@ -279,6 +282,9 @@ class Ticket:
     tick_dict = {"ID": {}, "name": {}, "creator": {}}
     name_tickets = []
     creator_tickets = []
+    max_id = DatabaseHandler.max_ticketid()
+    if max_id is None:
+        max_id = 0
 
     def __init__(self, creator, name, callback, location, summary, detail):
         self.creator = creator
@@ -287,7 +293,7 @@ class Ticket:
         self.location = location
         self.summary = summary
         self.detail = detail
-        self.ID = DatabaseHandler.max_ticketid() + 1
+        self.ID = Ticket.max_id + 1
         self.created_tickets = Ticket.created_tickets
         self.workgroup_assigned_to = User.logged_in_workgroup
         self.user_assigned_to = User.logged_in_username
