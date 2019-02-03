@@ -174,10 +174,10 @@ def delete_user():
             del_user.straight_assignment(assign_user, ticket)
         input("[Enter to continue]")
     deleted = DatabaseHandler.delete(del_user)
-    if del_user.logged_in:
-        log_out(del_user)
     User.user_count = DatabaseHandler.user_count()
     if deleted:
+        if del_user.logged_in:
+            log_out(del_user)
         print(colored("\n**{} from the {} workgroup Successfully Deleted**".
                       format(del_user.username, del_user.workgroup), "blue"))
         input("[Enter to continue...]")
@@ -197,6 +197,7 @@ def matching_item(username, user_list):
         if username.lower() in user.lower():
             return user
 
+
 def workgroup_select():
     valid_workgroups = sorted(User.workgroups)
     workgroup = ""
@@ -207,11 +208,16 @@ def workgroup_select():
             break
         else:
             close_workgroup = matching_item(workgroup, valid_workgroups)
-            workgroup_check = input("Did you mean {}? (Y/N)".format(close_workgroup)).lower()
-            if workgroup_check == "y":
-                workgroup = close_workgroup
+            while close_workgroup is not None:
+                workgroup_check = input("Did you mean {}? (Y/N)".format(close_workgroup)).lower()
+                if workgroup_check == "y":
+                    workgroup = close_workgroup
+                    break
                 break
+            else:
+                print(colored("\n**Not a matching workgroup, try again**", "red"))
     return workgroup
+
 
 def user_select():
     user_dict = User.user_dict
@@ -225,10 +231,14 @@ def user_select():
             break
         else:
             close_user = matching_item(username, valid_users)
-            user_check = input("Did you mean {}? (Y/N)".format(close_user)).lower()
-            if user_check == "y":
-                username = close_user
+            while close_user is not None:
+                user_check = input("Did you mean {}? (Y/N)".format(close_user)).lower()
+                if user_check == "y":
+                    username = close_user
+                    break
                 break
+            else:
+                print(colored("\n**Not a matching user, try again**", "red"))
     user = user_dict["username"][username]
     return user
 
@@ -527,16 +537,20 @@ def ticket_lookup():
             name = ""
             valid_names = list(Ticket.tick_dict[search].keys())
             while name not in valid_names:
-                print("\nValid names: {}".format(valid_names))
-                name = input("Enter Name: ")
+                print("\nValid ticket names: {}".format(valid_names))
+                name = input("Enter ticket Name: ")
                 if name in valid_names:
                     break
                 else:
                     close_name = matching_item(name, valid_names)
-                    name_check = input("Did you mean {}? (Y/N)".format(close_name)).lower()
-                    if name_check == "y":
-                        name = close_name
+                    while close_name is not None:
+                        name_check = input("Did you mean {}? (Y/N)".format(close_name)).lower()
+                        if name_check == "y":
+                            name = close_name
+                            break
                         break
+                    else:
+                        print(colored("\n**Not a matching ticket name, try again**", "red"))
             for ticket in Ticket.tick_dict[search][name]:
                 if ticket.name == name:
                     print(ticket)
@@ -559,10 +573,14 @@ def ticket_lookup():
                     break
                 else:
                     close_creator = matching_item(creator, valid_creators)
-                    name_check = input("Did you mean {}? (Y/N)".format(close_creator)).lower()
-                    if name_check == "y":
-                        creator = close_creator
+                    while close_creator is not None:
+                        name_check = input("Did you mean {}? (Y/N)".format(close_creator)).lower()
+                        if name_check == "y":
+                            creator = close_creator
+                            break
                         break
+                    else:
+                        print(colored("\n**Not a matching creator, try again**", "red"))
             for ticket in Ticket.tick_dict[search][creator]:
                 if ticket.creator == creator:
                     print(ticket)
@@ -586,7 +604,6 @@ def ticket_lookup():
 
         if search_method == "6":
             count = 0
-
             for ticket in Ticket.tick_dict["ID"].values():
                 if ticket.resolved:
                     print(ticket)
@@ -610,6 +627,25 @@ def ticket_lookup():
 
     except KeyError:
         print("\nTicket {} doesn't exsist".format(search))
+        input("[Enter to continue...]")
+
+
+def search_tickets():
+    results = False
+    ticket_dict = Ticket.tick_dict
+    print("\nEnter Keywords to search by:\n")
+    keywords = input("Keywords (separated by comma): ").split(",")
+    for ticket in ticket_dict["ID"].values():
+        ticket_details = [str(ticket.ID),ticket.creator,ticket.name,ticket.location,ticket.summary,ticket.detail.split(" ")]
+        for keyword in keywords:
+           for i in ticket_details:
+               if keyword in i:
+                   results = True
+                   print(ticket)
+                   input("[Enter to continue...]")
+
+    if not results:
+        print(colored("No tickets match Keywords: {}".format(keywords), "red"))
         input("[Enter to continue...]")
 
 
@@ -693,7 +729,7 @@ def menu():
         print(" [ Tickets Assigned: {} ]".format(len(User.logged_in_user.assigned_tickets)))
         print("|********************************|\n"
               "\n1.Login \n2.Create User [UU to Update User or DU to Delete User]"
-              "\n3.Create Ticket [UT to Update Ticket or DT to Delete Ticket]\n4.Ticket Lookup\n"
+              "\n3.Create Ticket [UT to Update Ticket or DT to Delete Ticket]\n4.Ticket Lookup [S to search keywords]\n"
               "5.Resolve Ticket\n6.Un-resolve Ticket\n7.Assign Ticket\n -[Q to Quit]-")
         action = input("\nSelection: ")
         if action == "1" and User.user_count > 0:
@@ -723,6 +759,8 @@ def menu():
                     delete_ticket()
                 if action == "4":
                     ticket_lookup()
+                if action.lower() == "s":
+                    search_tickets()
                 if action == "5":
                     print("\nSelect a ticket ID to resolve:")
                     ticket = ticket_select()

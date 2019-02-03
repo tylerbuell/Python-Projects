@@ -135,7 +135,8 @@ def delete(object):
             delete = """DELETE FROM {} WHERE ID = {}""".format(table, ticket.ID)
             associated_user = ticket.assigned_user
             if len(associated_user.assigned_tickets) > 0:
-                associated_user.assigned_tickets.remove(ticket.ID)
+                if ticket.ID in associated_user.assigned_tickets:
+                    associated_user.assigned_tickets.remove(ticket.ID)
                 update_user(associated_user, assigned_tickets=True)
                 del ticket.tick_dict["ID"][ticket.ID]
                 del ticket.tick_dict["name"][ticket.name]
